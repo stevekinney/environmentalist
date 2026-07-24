@@ -9,8 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 bun run dev               # Start development with watch mode
 bun run build             # Build for production (outputs to dist/)
-bun ./dist/bun/index.js   # Run Bun-optimized build
-node ./dist/node/index.js # Run Node-compatible build
+bun ./dist/index.node.js     # Run the Node-family build under Bun
+node ./dist/index.node.js    # Run the Node-compatible build
 ```
 
 ### Testing
@@ -57,14 +57,16 @@ bun run package:check    # Run publint + @arethetypeswrong/cli on packed tarball
 
 - **ESM + TypeScript**: Source files are TypeScript modules; build output targets both Node and Bun.
 - **Import paths**: Use standard TS/ESM imports; no `@/*` path alias (it leaks into `.d.ts` files).
-- **Library output**: Dual-emit — `dist/node/` for Node consumers, `dist/bun/` for Bun consumers. The `exports` map routes consumers automatically.
+- **Library output**: One build emits Node, browser, CLI, React, and Svelte artifacts. The `exports` map routes consumers automatically.
 
 ### Library Packaging
 
 The build produces:
 
-- `dist/node/index.js` — ESM bundle, `Bun.build target: 'node'`, all deps external
-- `dist/bun/index.js` — ESM bundle, `Bun.build target: 'bun'`, all deps external
+- `dist/index.node.js` — ESM bundle, `Bun.build target: 'node'`, all deps external
+- `dist/index.browser.js` — ESM bundle, `Bun.build target: 'browser'`, all deps external
+- `dist/cli.js` — ESM CLI bundle with the `environmentalist` shebang
+- `dist/react.js` and `dist/svelte.js` — optional framework entry bundles
 - `dist/index.d.ts` — TypeScript declarations (shared)
 
 The `exports` map in `package.json`:
@@ -73,9 +75,10 @@ The `exports` map in `package.json`:
 {
   ".": {
     "types": "./dist/index.d.ts",
-    "bun": "./dist/bun/index.js",
-    "import": "./dist/node/index.js",
-    "default": "./dist/node/index.js"
+    "browser": "./dist/index.browser.js",
+    "node": "./dist/index.node.js",
+    "bun": "./dist/index.node.js",
+    "default": "./dist/index.node.js"
   },
   "./package.json": "./package.json"
 }

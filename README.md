@@ -91,8 +91,9 @@ A CI workflow at `.github/workflows/ci.yaml` runs `bun run validate` on every pu
 
 When built, the package emits two ESM bundles:
 
-- `dist/node/index.js` — Node-compatible build (`Bun.build target: 'node'`)
-- `dist/bun/index.js` — Bun-optimized build (`Bun.build target: 'bun'`)
+- `dist/index.node.js` — Node-family build (`Bun.build target: 'node'`)
+- `dist/index.browser.js` — browser build (`Bun.build target: 'browser'`)
+- `dist/cli.js`, `dist/react.js`, and `dist/svelte.js` — CLI and optional framework entries
 - `dist/index.d.ts` — Shared TypeScript declarations
 
 The `package.json` `exports` map routes Bun consumers to the Bun build and Node/bundler consumers to the Node build automatically.

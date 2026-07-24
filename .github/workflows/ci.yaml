@@ -42,4 +42,4 @@ jobs:
       # `validate` runs entirely under Bun. This step exercises the emitted
       # Node bundle under the matrix Node version so the matrix is meaningful.
       - name: Smoke-test Node build
-        run: node --input-type=module -e "import { greet } from './dist/node/index.js'; if (greet('Node') !== 'Hello, Node!') { throw new Error('Node build smoke test failed'); }"
+        run: node --input-type=module -e "import('./dist/index.node.js').then(({ EnvironmentalistError }) => { if (EnvironmentalistError.name !== 'EnvironmentalistError') throw new Error('Node build smoke test failed'); })"
