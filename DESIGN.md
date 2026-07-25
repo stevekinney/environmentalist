@@ -510,104 +510,108 @@ Sync points: Track A and the shared `types.ts` land first (everything imports th
 
 Each item is independently verifiable—a test passes or a command exits `0`. Implement test-first: write the failing test, implement until green, then move on. Nothing is done until `bun test`, `bunx tsc --noEmit`, `bunx publint`, and `bunx @arethetypeswrong/cli --pack` all exit `0`.
 
+**Status: 68 of 69 met.** Each checked box is covered by a test in the suite. The one unchecked box is the Svelte component test—`src/svelte.test.ts` exercises `createEnvironment` and `toStore` against a mock watcher, but not from a compiled component, because Bun's test runner does not compile Svelte source files. The React equivalent _is_ a real component test. See `src/svelte.ts` for the reasoning behind the compiler-free binding.
+
+Separately, three flags described in the CLI prose above were never acceptance criteria and are not implemented: `types --augment`, `--watch`, and `--sources` each throw "not implemented yet". The `deprecated` metadata key is declared but read by nothing.
+
 Key model and typing:
 
-- [ ] `environment.anthropicApiKey` is defined when the schema key is `ANTHROPIC_API_KEY`; `environment.ANTHROPIC_API_KEY` is `undefined`.
-- [ ] A config file spelling a key `anthropicApiKey`, `ANTHROPIC_API_KEY`, or `anthropic-api-key` resolves to the same value (three tests, same expectation).
-- [ ] `tsc --noEmit` proves the return type exposes camelCase keys: a test file reading `environment.ANTHROPIC_API_KEY` fails type-check; reading `environment.anthropicApiKey` passes.
-- [ ] The returned object is frozen: `Object.isFrozen(environment) === true`.
+- [x] `environment.anthropicApiKey` is defined when the schema key is `ANTHROPIC_API_KEY`; `environment.ANTHROPIC_API_KEY` is `undefined`.
+- [x] A config file spelling a key `anthropicApiKey`, `ANTHROPIC_API_KEY`, or `anthropic-api-key` resolves to the same value (three tests, same expectation).
+- [x] `tsc --noEmit` proves the return type exposes camelCase keys: a test file reading `environment.ANTHROPIC_API_KEY` fails type-check; reading `environment.anthropicApiKey` passes.
+- [x] The returned object is frozen: `Object.isFrozen(environment) === true`.
 
 Resolution order (each asserts the documented winner with the same key set in multiple sources):
 
-- [ ] A `--anthropic-api-key` flag beats an `ANTHROPIC_API_KEY` env var.
-- [ ] A real env var beats a value in `.env`.
-- [ ] `.env.$mode.local` beats `.env.local` beats `.env.$mode` beats `.env`.
-- [ ] A nearer `bowowwow.config.ts` beats a workspace-root one.
-- [ ] A project config file beats `~/.$name`, which beats `~/.config/$name/config.*`, which beats `~/.environmentalist/$name`, which beats a schema `.default()`.
-- [ ] Per-key composition: env supplies one key and a config file supplies another; both appear in the result.
-- [ ] Traversal stops at the workspace-root marker and does not read config files above it.
+- [x] A `--anthropic-api-key` flag beats an `ANTHROPIC_API_KEY` env var.
+- [x] A real env var beats a value in `.env`.
+- [x] `.env.$mode.local` beats `.env.local` beats `.env.$mode` beats `.env`.
+- [x] A nearer `bowowwow.config.ts` beats a workspace-root one.
+- [x] A project config file beats `~/.$name`, which beats `~/.config/$name/config.*`, which beats `~/.environmentalist/$name`, which beats a schema `.default()`.
+- [x] Per-key composition: env supplies one key and a config file supplies another; both appear in the result.
+- [x] Traversal stops at the workspace-root marker and does not read config files above it.
 
 Sources:
 
-- [ ] `--key=value`, `--key value`, `--no-key`, repeated flags (→array), an alias, and `--server.port=3000` (→nested) each parse as specified (six tests).
-- [ ] `envPrefix: 'BOWOWWOW'` makes `mode` read `BOWOWWOW_MODE` and ignore bare `MODE`.
-- [ ] `search: '?anthropic-api-key=sk-x&tag=a&tag=b'` resolves `anthropicApiKey` and `tag: ['a','b']`; in a jsdom test the same values resolve from `window.location.search` with no `search` option.
-- [ ] A `secret`-marked key present in the URL search params is ignored by default (its value does not appear in the result).
-- [ ] `exclude: ['env']` drops env-var resolution: a value set only in the environment is absent, while other sources still resolve; the excluded id does not appear in the `SOURCES` map.
-- [ ] `exclude: ['defaults']` makes a key with a schema `.default()` fail as required when no other source provides it.
-- [ ] `SERVER__PORT=3000` resolves to `{ server: { port: 3000 } }`.
-- [ ] `${VAR}` in a `.env` value is expanded.
-- [ ] Config files in `.ts`, `.js`, `.json`, `.toml`, and `.yaml` each load and contribute values (five tests).
-- [ ] A `$name` key in `package.json` is read as a config source.
-- [ ] The two-pass mode resolution: setting `mode` via a flag changes which `.env.$mode` file is loaded (one test proves the pre-pass).
+- [x] `--key=value`, `--key value`, `--no-key`, repeated flags (→array), an alias, and `--server.port=3000` (→nested) each parse as specified (six tests).
+- [x] `envPrefix: 'BOWOWWOW'` makes `mode` read `BOWOWWOW_MODE` and ignore bare `MODE`.
+- [x] `search: '?anthropic-api-key=sk-x&tag=a&tag=b'` resolves `anthropicApiKey` and `tag: ['a','b']`; in a jsdom test the same values resolve from `window.location.search` with no `search` option.
+- [x] A `secret`-marked key present in the URL search params is ignored by default (its value does not appear in the result).
+- [x] `exclude: ['env']` drops env-var resolution: a value set only in the environment is absent, while other sources still resolve; the excluded id does not appear in the `SOURCES` map.
+- [x] `exclude: ['defaults']` makes a key with a schema `.default()` fail as required when no other source provides it.
+- [x] `SERVER__PORT=3000` resolves to `{ server: { port: 3000 } }`.
+- [x] `${VAR}` in a `.env` value is expanded.
+- [x] Config files in `.ts`, `.js`, `.json`, `.toml`, and `.yaml` each load and contribute values (five tests).
+- [x] A `$name` key in `package.json` is read as a config source.
+- [x] The two-pass mode resolution: setting `mode` via a flag changes which `.env.$mode` file is loaded (one test proves the pre-pass).
 
 Coercion, validation, secrets, provenance:
 
-- [ ] With `z.number()` and `z.boolean()` fields, string env values coerce to `number`/`boolean` (asserted via `typeof`).
-- [ ] `coerce: false` leaves string values as strings.
-- [ ] A file source with an already-typed value bypasses coercion unchanged.
-- [ ] Two simultaneously-invalid keys produce one thrown `EnvironmentalistError` whose message names both keys.
-- [ ] `environmentalist.safe(...)` returns `{ success: false, error }` instead of throwing on the same input.
-- [ ] `environment[SOURCES].<key>` reports the correct `source` and `location` for a value that came from env vs. a config file (two tests).
-- [ ] A field marked `secret` is masked in the thrown error message, in `JSON.stringify(environment)`, and in `util.inspect(environment)` (three tests), while `environment.theSecret` still returns the real value.
+- [x] With `z.number()` and `z.boolean()` fields, string env values coerce to `number`/`boolean` (asserted via `typeof`).
+- [x] `coerce: false` leaves string values as strings.
+- [x] A file source with an already-typed value bypasses coercion unchanged.
+- [x] Two simultaneously-invalid keys produce one thrown `EnvironmentalistError` whose message names both keys.
+- [x] `environmentalist.safe(...)` returns `{ success: false, error }` instead of throwing on the same input.
+- [x] `environment[SOURCES].<key>` reports the correct `source` and `location` for a value that came from env vs. a config file (two tests).
+- [x] A field marked `secret` is masked in the thrown error message, in `JSON.stringify(environment)`, and in `util.inspect(environment)` (three tests), while `environment.theSecret` still returns the real value.
 
 Tooling and packaging:
 
-- [ ] `toJSONSchema(schema)` returns valid JSON Schema (validated against a JSON Schema meta-schema).
-- [ ] `initialize` writes a config file that, when read back through `environmentalist`, produces a valid environment.
-- [ ] The package is ESM-only and `publint` + `@arethetypeswrong/cli` report no problems.
-- [ ] `zod` appears only in `peerDependencies`, not `dependencies`.
-- [ ] The library core entry (`.`) imports without pulling `ts-morph`/`typescript` into the module graph.
-- [ ] Export resolution routes `.` to the browser artifact under the `browser` condition and to the Node artifact under `node`/`bun`/`default` (assert with a resolver, e.g. `resolve.exports`).
+- [x] `toJSONSchema(schema)` returns valid JSON Schema (validated against a JSON Schema meta-schema).
+- [x] `initialize` writes a config file that, when read back through `environmentalist`, produces a valid environment.
+- [x] The package is ESM-only and `publint` + `@arethetypeswrong/cli` report no problems.
+- [x] `zod` appears only in `peerDependencies`, not `dependencies`.
+- [x] The library core entry (`.`) imports without pulling `ts-morph`/`typescript` into the module graph.
+- [x] Export resolution routes `.` to the browser artifact under the `browser` condition and to the Node artifact under `node`/`bun`/`default` (assert with a resolver, e.g. `resolve.exports`).
 
 Type safety:
 
-- [ ] Property test: 1,000+ fuzzed keys produce identical output from the runtime `change-case` transform and the `CamelCasedPropertiesDeep` type-level transform.
-- [ ] `ANTHROPIC_API_KEY`, `AWS_REGION`, `s3Bucket`, and `oauth2Token` each map to their documented camelCase key in both runtime and type (table test).
-- [ ] A field declared with `.default()` is non-optional on the returned `environment` type (proves output-type basis) — asserted with `expect-type`.
-- [ ] Two schema keys that camelCase-collide throw `EnvironmentalistError` at construction, message naming both.
-- [ ] A `.passthrough()` / `.catchall()` schema throws a clear error at construction.
-- [ ] `aliases` with a value that isn't a canonical key fails `tsc --noEmit`.
+- [x] Property test: 1,000+ fuzzed keys produce identical output from the runtime `change-case` transform and the `CamelCasedPropertiesDeep` type-level transform.
+- [x] `ANTHROPIC_API_KEY`, `AWS_REGION`, `s3Bucket`, and `oauth2Token` each map to their documented camelCase key in both runtime and type (table test).
+- [x] A field declared with `.default()` is non-optional on the returned `environment` type (proves output-type basis) — asserted with `expect-type`.
+- [x] Two schema keys that camelCase-collide throw `EnvironmentalistError` at construction, message naming both.
+- [x] A `.passthrough()` / `.catchall()` schema throws a clear error at construction.
+- [x] `aliases` with a value that isn't a canonical key fails `tsc --noEmit`.
 
 Metadata and errors:
 
-- [ ] A missing-required-key error message contains the key's `description`, its `docs` URL, the exact env/flag/file spellings checked, and a fix line (assert each substring).
-- [ ] An invalid non-secret value appears verbatim in the error; an invalid `secret`-marked value is masked (two assertions, one message).
-- [ ] A field with `{ env: 'DATABASE_URL' }` metadata resolves from `DATABASE_URL` even when `envPrefix` is set.
-- [ ] `.env.example` / scaffold output contains each key's `description` as a comment.
+- [x] A missing-required-key error message contains the key's `description`, its `docs` URL, the exact env/flag/file spellings checked, and a fix line (assert each substring).
+- [x] An invalid non-secret value appears verbatim in the error; an invalid `secret`-marked value is masked (two assertions, one message).
+- [x] A field with `{ env: 'DATABASE_URL' }` metadata resolves from `DATABASE_URL` even when `envPrefix` is set.
+- [x] `.env.example` / scaffold output contains each key's `description` as a comment.
 
 CLI and type generation:
 
-- [ ] `environmentalist types ./fixture.ts --out out.d.ts` writes a `.d.ts` that `tsc --noEmit` accepts.
-- [ ] The generated type is mutually assignable with the library-inferred `Environment<S>` for every fixture (`expect-type`, both directions).
-- [ ] The generated type contains `anthropicApiKey`, not `ANTHROPIC_API_KEY`.
-- [ ] `--static` runs without executing module side effects: a fixture that writes a sentinel file on import leaves no sentinel after `--static`, but the runtime strategy creates it.
-- [ ] Both `--out x.d.ts` and `--out x.ts` (exported type) compile.
-- [ ] `--kind input` and `--kind output` differ in the optionality of a defaulted key.
-- [ ] The CLI locates the schema via `--export`, via an auto-detected `environmentalist()` call, and via the `SCHEMA` back-reference (three tests).
+- [x] `environmentalist types ./fixture.ts --out out.d.ts` writes a `.d.ts` that `tsc --noEmit` accepts.
+- [x] The generated type is mutually assignable with the library-inferred `Environment<S>` for every fixture (`expect-type`, both directions).
+- [x] The generated type contains `anthropicApiKey`, not `ANTHROPIC_API_KEY`.
+- [x] `--static` runs without executing module side effects: a fixture that writes a sentinel file on import leaves no sentinel after `--static`, but the runtime strategy creates it.
+- [x] Both `--out x.d.ts` and `--out x.ts` (exported type) compile.
+- [x] `--kind input` and `--kind output` differ in the optionality of a defaulted key.
+- [x] The CLI locates the schema via `--export`, via an auto-detected `environmentalist()` call, and via the `SCHEMA` back-reference (three tests).
 
 Electron / Electrobun:
 
-- [ ] `toPublic(environment)` omits every `secret`-marked key, preserves the rest, and its output passes `structuredClone` without throwing.
-- [ ] `electronPaths('Bowowwow')` returns the documented `userData` directory for each of macOS, Windows (`%APPDATA%`), and Linux (`$XDG_CONFIG_HOME`/`~/.config`) — asserted per platform.
-- [ ] An `electron-store`-style `config.json` placed in the resolved `userData` directory is discovered and parsed into the environment.
-- [ ] The generated config `.d.ts` can be `import type`d in a file that does NOT import the library runtime, and `tsc --noEmit` passes.
+- [x] `toPublic(environment)` omits every `secret`-marked key, preserves the rest, and its output passes `structuredClone` without throwing.
+- [x] `electronPaths('Bowowwow')` returns the documented `userData` directory for each of macOS, Windows (`%APPDATA%`), and Linux (`$XDG_CONFIG_HOME`/`~/.config`) — asserted per platform.
+- [x] An `electron-store`-style `config.json` placed in the resolved `userData` directory is discovered and parsed into the environment.
+- [x] The generated config `.d.ts` can be `import type`d in a file that does NOT import the library runtime, and `tsc --noEmit` passes.
 
 Watch mode and reactivity:
 
-- [ ] Changing a watched `.env` value fires a `change` event whose `changes` entry names the key, `from`, `to`, and `source`.
-- [ ] A file-backed config is watched via `fs.watch` with no polling timer scheduled; an env-var-only config falls back to polling — assert the path taken per source.
-- [ ] Poll ticks dispatch through the idle scheduler (`requestIdleCallback` / `scheduler.postTask` / `setImmediate`), verified by stubbing that API — not a bare `setInterval`.
-- [ ] After an invalid reload, `current` still equals the last valid environment and an `error` event fired; the watcher is not closed and recovers on the next valid reload.
-- [ ] `getSnapshot()` returns the identical reference across ticks when nothing changed (reference stability).
-- [ ] Given two rapid changes before a slow consumer reads the async iterator, it observes the newest snapshot and no stale backlog (coalescing).
-- [ ] `close()` (and `await using`) stops polling and removes native listeners — no leaked timer or listener (asserted).
-- [ ] `useEnvironment` re-renders a React test component on change and not otherwise (render-count assertion).
+- [x] Changing a watched `.env` value fires a `change` event whose `changes` entry names the key, `from`, `to`, and `source`.
+- [x] A file-backed config is watched via `fs.watch` with no polling timer scheduled; an env-var-only config falls back to polling — assert the path taken per source.
+- [x] Poll ticks dispatch through the idle scheduler (`requestIdleCallback` / `scheduler.postTask` / `setImmediate`), verified by stubbing that API — not a bare `setInterval`.
+- [x] After an invalid reload, `current` still equals the last valid environment and an `error` event fired; the watcher is not closed and recovers on the next valid reload.
+- [x] `getSnapshot()` returns the identical reference across ticks when nothing changed (reference stability).
+- [x] Given two rapid changes before a slow consumer reads the async iterator, it observes the newest snapshot and no stale backlog (coalescing).
+- [x] `close()` (and `await using`) stops polling and removes native listeners — no leaked timer or listener (asserted).
+- [x] `useEnvironment` re-renders a React test component on change and not otherwise (render-count assertion).
 - [ ] The Svelte wrapper's `current` updates reactively on change (component test).
 
 Browser and cross-runtime:
 
-- [ ] Imported under the `browser` condition, the module graph contains no `fs`/`os`/`path`/`jiti`/`dotenv` (bundle-analysis or import assertion).
-- [ ] In a jsdom / happy-dom test, values resolve from `localStorage`, a `window.__BOWOWWOW__` global, and `?key=` query params in the documented precedence.
-- [ ] A simulated cross-tab `storage` event fires a watcher `change` in the browser adapter.
-- [ ] A `secret`-marked key is absent from the object produced for a simulated browser/renderer context (`toPublic` is the only thing that crosses).
+- [x] Imported under the `browser` condition, the module graph contains no `fs`/`os`/`path`/`jiti`/`dotenv` (bundle-analysis or import assertion).
+- [x] In a jsdom / happy-dom test, values resolve from `localStorage`, a `window.__BOWOWWOW__` global, and `?key=` query params in the documented precedence.
+- [x] A simulated cross-tab `storage` event fires a watcher `change` in the browser adapter.
+- [x] A `secret`-marked key is absent from the object produced for a simulated browser/renderer context (`toPublic` is the only thing that crosses).
