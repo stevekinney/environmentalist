@@ -22,13 +22,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # setup-node writes the .npmrc (registry + NODE_AUTH_TOKEN wiring) needed
-      # for OIDC trusted publishing with provenance — no hand-rolled .npmrc.
+      # setup-node writes the .npmrc (registry wiring) needed for OIDC trusted
+      # publishing with provenance — no hand-rolled .npmrc, no NPM_TOKEN.
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      # Node 22 ships npm 10.x; trusted publishing (OIDC) needs npm >= 11.5.1.
+      - name: Upgrade npm
+        run: npm install -g npm@^11.5.1
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -41,22 +45,16 @@ jobs:
       - name: Verify tag matches package.json version
         run: bun run scripts/verify-release-version.ts
 
-      - name: Lint
-        run: bun run lint
+      # Runs the same gate `prepublishOnly` would, but up front, so a failure
+      # surfaces before the publish attempt rather than inside it. This also
+      # builds `dist/`, which the `--ignore-scripts` publish below relies on.
+      - name: Validate
+        run: bun run validate
 
-      - name: Typecheck
-        run: bun run typecheck
-
-      - name: Test
-        run: bun test
-
-      - name: Build package
-        run: bun run build
-
-      - name: Check package exports and types
-        run: bun run package:check
-
+      # `--ignore-scripts` because `validate` already ran the full gate and the
+      # build. It also avoids a nested `npm pack` (from attw, via prepublishOnly)
+      # running inside the outer publish lifecycle.
       - name: Publish to npm
         env:
           NPM_CONFIG_PROVENANCE: 'true'
-        run: npm publish
+        run: npm publish --ignore-scripts

@@ -9,16 +9,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 bun run dev               # Start development with watch mode
 bun run build             # Build for production (outputs to dist/)
-bun ./dist/index.node.js     # Run the Node-family build under Bun
-node ./dist/index.node.js    # Run the Node-compatible build
+node ./dist/cli.js --help # Exercise the built CLI under plain Node
 ```
 
 ### Testing
 
 ```bash
 bun test                  # Run all tests
-bun test src/utils        # Run tests in specific directory
-bun test logger           # Run tests matching pattern
+bun test src/watch        # Run tests in specific directory
+bun test resolve          # Run tests matching pattern
 bun test --watch          # Watch mode
 bun test --coverage       # Generate coverage report
 ```
@@ -43,15 +42,30 @@ bun run clean            # Clean build artifacts (dist/, coverage/, caches)
 bun run package:check    # Run publint + @arethetypeswrong/cli on packed tarball
 ```
 
+### Releasing
+
+Tag-driven and tokenless via npm trusted publishing (OIDC) — there is no `NPM_TOKEN` in this repository.
+
+```bash
+npm version patch        # commits and tags vX.Y.Z
+git push --follow-tags   # triggers .github/workflows/release.yaml
+```
+
+The npm-side trusted publisher is bound to the workflow **filename**, so renaming `.github/workflows/release.yaml` breaks publishing until the npm configuration is updated to match. `NPM_CONFIG_PROVENANCE` belongs in the workflow, not in `publishConfig` — provenance requires a supported CI and would break any local publish.
+
 ## Architecture Overview
 
 ### Core Design Principles
 
-1. **Environment-First Configuration**: All configuration starts with environment variables validated through Zod schemas in `src/environment.ts`. The `environment` object is the single source of truth.
+This repository is the published library `@lostgradient/environmentalist` — a Zod-schema-driven configuration resolver. `README.md` documents the consumer-facing surface; `DESIGN.md` is the original design specification and describes intent, not necessarily current behavior.
 
-2. **Lean Surface Area**: This template intentionally avoids framework-specific scaffolding (custom error classes, logger wrappers, etc.). Add only what you need for your project.
+1. **Neutral Core, Platform Adapters**: The resolution engine (canonical keys, per-key precedence merge, coercion, validation, provenance, redaction, watch) is platform-neutral. Only the sources and the config loader are platform-specific, selected by export condition. Node-only dependencies must stay behind `src/sources/node/` and `src/platform/node.ts` so the `browser` artifact tree-shakes them out.
+
+2. **One Canonical Key Model**: Every key normalizes to camelCase. The remap runs twice — at runtime via `change-case` (`src/keys.ts`) and at compile time via `CamelCasedPropertiesDeep` (`src/types.ts`). These two must agree; a property test enforces it. Changing either without the other makes the types lie.
 
 3. **Runtime-Neutral Published Code**: `src/` must not use Bun-only runtime APIs (`Bun.file`, `Bun.env`, `Bun.serve`, etc.). Those APIs are fine in `scripts/` and test files, but must not appear in published library output.
+
+4. **One Copy of Zod**: `zod` is a peer dependency and must never move to `dependencies`. Two copies produce nominally different types and inference rots to `unknown` at the seams.
 
 ### Key Notes
 
@@ -80,9 +94,19 @@ The `exports` map in `package.json`:
     "bun": "./dist/index.node.js",
     "default": "./dist/index.node.js"
   },
+  "./types": { "types": "./dist/types.d.ts", "default": "./dist/types.d.ts" },
+  "./cli": {
+    "types": "./dist/cli/index.d.ts",
+    "node": "./dist/cli.js",
+    "default": "./dist/cli.js"
+  },
+  "./react": { "types": "./dist/react.d.ts", "default": "./dist/react.js" },
+  "./svelte": { "types": "./dist/svelte.d.ts", "default": "./dist/svelte.js" },
   "./package.json": "./package.json"
 }
 ```
+
+`./types` is types-only (for renderer/IPC consumers with no runtime import). `ts-morph` is an optional dependency scoped to the CLI so importing the library never pulls in the TypeScript compiler.
 
 Package validation runs as part of `validate`: `publint` checks the exports map structure and `@arethetypeswrong/cli` checks type resolution across resolution modes.
 
@@ -104,18 +128,31 @@ Hooks print only on failure (`output: [failure, execution_out]` in `lefthook.yml
 - **format-on-edit** (`PostToolUse` on `Edit`/`Write`): runs `prettier --write --ignore-unknown` on the file Claude just edited, so edits always match the project style and never trip the format gate. Fail-safe — no-ops if Prettier isn't installed yet.
 - **protect-env** (`PreToolUse` on `Write`): blocks writes to `.env` / `.env.*` (except `.env.example`) so secrets aren't clobbered. Edit those files manually.
 
-Both scripts exit 0 (no-op) when their dependencies are missing, so a freshly cloned template never breaks a session.
+Both scripts exit 0 (no-op) when their dependencies are missing, so a fresh clone never breaks a session. No `.env` file is tracked in this repository — the library reads `.env` files belonging to _consuming_ projects, and any local `.env`/`.env.example` here is gitignored scratch. `protect-env` is a standing guard, not a description of tracked files.
 
-### Types
+### Source Layout
 
-There is no shared `src/types.ts` in this template. Add shared or domain-specific types near their modules as needed.
+- `src/types.ts` — the shared contract: `EnvironmentalistOptions`, `Environment<S>`, `SourceName`, `SourceSpec`, and the `SOURCES`/`SCHEMA` symbols. Nearly everything imports it.
+- `src/keys.ts` — canonical-key normalization and the per-source casing derivations.
+- `src/resolve.ts`, `src/resolve-core.ts`, `src/source-chain.ts` — chain assembly, per-key precedence merge, two-pass mode resolution. `DEFAULT_SOURCE_NAMES` in `source-chain.ts` is the authoritative Node source order.
+- `src/validate.ts`, `src/errors.ts`, `src/redact.ts`, `src/metadata.ts` — aggregated validation, the actionable error message, secret redaction, and the Zod metadata registry.
+- `src/sources/node/` and `src/sources/browser/` — the platform-specific source implementations.
+- `src/watch/` — the watcher; `src/react.ts` and `src/svelte.ts` are thin bindings over `subscribe`/`getSnapshot`.
+- `src/cli/` — the `environmentalist` bin. The only place `ts-morph` may be imported.
 
 ## Development Patterns
 
-### Adding New Features
+### Adding a Source
 
-1. **Environment variables**: Add to `.env.example` first, then update the schema in `src/environment.ts`.
-2. **Types**: Domain-specific types live near their modules.
+1. Add the id to `SourceName` in `src/types.ts`.
+2. Implement it under `src/sources/node/` or `src/sources/browser/`.
+3. Wire it into the chain in `src/source-chain.ts` (Node) or `src/index.browser.ts` (browser), in precedence order.
+4. Cover it in the `exclude` and provenance tests — the id has to appear in the `SOURCES` map and be droppable by `exclude`.
+5. Document the id and its precedence position in `README.md`.
+
+### Adding Schema Metadata
+
+Metadata keys are declared in `src/metadata.ts` and consumed by errors, `toJSONSchema`, `initialize` scaffolding, and `environmentalist print`. Adding a key means updating the type, the collector, and every consumer that should honor it.
 
 ### Testing Approach
 

@@ -20,8 +20,8 @@ environment.anthropicApiKey; // string
 
 Notice the shape flip: you wrote `ANTHROPIC_API_KEY` in the schema, but you read `environment.anthropicApiKey`. That camelCase remapping is the core mental model, so let's start there.
 
-> [!NOTE]
-> This is a design spec, not documentation for a shipped thing. Anything in the "Non-goals and future work" section is explicitly _out_ of the first version. The acceptance criteria at the bottom are the definition of done.
+> [!NOTE] This is the spec, not the documentation
+> This document is the original design specification, kept as a record of intent. The library has since shipped, and where the two disagree, the code wins—see [README.md](./README.md) for documentation of actual behavior. Anything in the "Non-goals and future work" section is explicitly _out_ of the first version.
 
 ## The canonical key model
 
@@ -444,7 +444,7 @@ Two hard constraints, both worth stating loudly. There's **no `.ts` config in th
 
 ## Packaging and tooling
 
-ESM-only. `zod` is a `peerDependency` (`^4`) so there's exactly one copy of Zod shared with the consumer's schema—no dual-instance `instanceof` surprises. Bundled `.d.ts`. Runtime targets are Node ≥ 20 and Bun.
+ESM-only. `zod` is a `peerDependency` (`^4`) so there's exactly one copy of Zod shared with the consumer's schema—no dual-instance `instanceof` surprises. Bundled `.d.ts`. Runtime targets are Node ≥ 22 and Bun ≥ 1.3 (as shipped; `package.json` `engines` is authoritative).
 
 - **Build:** `tsdown` (or `tsup`), ESM output plus types. (This repo already has a Bun.build-based `scripts/build.ts` — extending that is acceptable as long as the artifact/exports contract below holds.)
 - **Test:** `bun test`.
