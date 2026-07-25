@@ -28,6 +28,27 @@ async function temporaryDirectory(): Promise<string> {
   return directory;
 }
 
+/**
+ * Write an entry whose import writes a sentinel file, so a test can prove
+ * whether a generation strategy executed the module.
+ */
+async function sideEffectEntry(): Promise<{ entry: string; sentinel: string }> {
+  const directory = await temporaryDirectory();
+  const sentinel = join(directory, 'imported.sentinel');
+  const entry = join(directory, 'side-effect.ts');
+  const zodModule = resolve('node_modules/zod/index.js');
+  await writeFile(
+    entry,
+    [
+      "import { writeFileSync } from 'node:fs';",
+      `import { z } from ${JSON.stringify(zodModule)};`,
+      `writeFileSync(${JSON.stringify(sentinel)}, 'imported');`,
+      'export const schema = z.object({ ANTHROPIC_API_KEY: z.string() });',
+    ].join('\n'),
+  );
+  return { entry, sentinel };
+}
+
 async function capture(
   run: () => Promise<number>,
 ): Promise<{ code: number; output: string; error: string }> {
@@ -129,25 +150,20 @@ describe('CLI schema and type generation', () => {
   });
 
   it('never imports a static target', async () => {
-    const directory = await temporaryDirectory();
-    const sentinel = join(directory, 'imported.sentinel');
-    const entry = join(directory, 'side-effect.ts');
-    const zodModule = resolve('node_modules/zod/index.js');
-    await writeFile(
-      entry,
-      [
-        "import { writeFileSync } from 'node:fs';",
-        `import { z } from ${JSON.stringify(zodModule)};`,
-        `writeFileSync(${JSON.stringify(sentinel)}, 'imported');`,
-        'export const schema = z.object({ ANTHROPIC_API_KEY: z.string() });',
-      ].join('\n'),
-    );
+    const { entry, sentinel } = await sideEffectEntry();
 
-    const staticallyGenerated = await generateTypes({ entry, static: true });
-    expect(staticallyGenerated).toContain('anthropicApiKey');
+    const generated = await generateTypes({ entry, static: true });
+
+    expect(generated).toContain('anthropicApiKey');
     expect(await Bun.file(sentinel).exists()).toBe(false);
+  });
 
-    await generateTypes({ entry });
+  it('imports the target for runtime generation', async () => {
+    const { entry, sentinel } = await sideEffectEntry();
+
+    const generated = await generateTypes({ entry });
+
+    expect(generated).toContain('anthropicApiKey');
     expect(await Bun.file(sentinel).exists()).toBe(true);
   });
 
