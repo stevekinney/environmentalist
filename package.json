@@ -76,8 +76,8 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "lint": "oxlint --type-aware --tsconfig ./tsconfig.json",
     "lint:fix": "oxlint --fix --type-aware --tsconfig ./tsconfig.json",
-    "prepack": "bun run build",
     "package:check": "bun run build && bun x publint && bun x attw --pack --ignore-rules cjs-resolves-to-esm no-resolution",
+    "prepack": "bun run build",
     "prepare": "lefthook install",
     "prepublishOnly": "bun run validate",
     "start": "bun run src/index.ts",
@@ -86,7 +86,8 @@
     "tsc": "tsc",
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc --noEmit --project tsconfig.test.json",
-    "validate": "bun run format:check && bun run lint && bun run typecheck && bun run typecheck:test && bun run test && bun run build && bun run package:check",
+    "validate": "bun run format:check && bun run lint && bun run typecheck && bun run typecheck:test && bun run test && bun run build && bun run package:check && bun run verify:package-types",
+    "verify:package-types": "bun run scripts/verify-package-types.ts",
     "verify:release-version": "bun run scripts/verify-release-version.ts"
   },
   "dependencies": {
