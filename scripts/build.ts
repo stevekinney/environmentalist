@@ -49,8 +49,23 @@ for (const artifact of artifacts) {
   }
 }
 
+// `dist/types.d.ts` is the declaration output of `src/types.ts` and must stay
+// that way. The types-only entry keeps its own emitted path, `types-entry.d.ts`,
+// which the `./types` export condition points at; copying it over
+// `dist/types.d.ts` used to leave a barrel re-exporting from itself, so no
+// consumer could resolve `EnvironmentalistOptions` and friends.
 await $`bun run tsc --declaration --emitDeclarationOnly --project tsconfig.build.json`;
-await Bun.write('./dist/types.d.ts', Bun.file('./dist/types-entry.d.ts'));
+// Guard the emit collision above: if `dist/types.d.ts` ever stops carrying the
+// real declarations, every consumer's `EnvironmentalistOptions` silently
+// resolves to nothing, which type-checks as a barrel and fails only downstream.
+const declarations = await Bun.file('./dist/types.d.ts').text();
+if (!declarations.includes('type EnvironmentalistOptions')) {
+  throw new Error(
+    'dist/types.d.ts does not declare EnvironmentalistOptions. It must be the ' +
+      'declaration output of src/types.ts, not the types-entry barrel.',
+  );
+}
+
 const cliPath = './dist/cli.js';
 const cli = await Bun.file(cliPath).text();
 if (!cli.startsWith('#!')) await Bun.write(cliPath, `#!/usr/bin/env node\n${cli}`);

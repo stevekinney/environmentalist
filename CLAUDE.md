@@ -94,7 +94,10 @@ The `exports` map in `package.json`:
     "bun": "./dist/index.node.js",
     "default": "./dist/index.node.js"
   },
-  "./types": { "types": "./dist/types.d.ts", "default": "./dist/types.d.ts" },
+  "./types": {
+    "types": "./dist/types-entry.d.ts",
+    "default": "./dist/types-entry.d.ts"
+  },
   "./cli": {
     "types": "./dist/cli/index.d.ts",
     "node": "./dist/cli.js",

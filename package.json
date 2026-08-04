@@ -36,8 +36,8 @@
       "default": "./dist/index.node.js"
     },
     "./types": {
-      "types": "./dist/types.d.ts",
-      "default": "./dist/types.d.ts"
+      "types": "./dist/types-entry.d.ts",
+      "default": "./dist/types-entry.d.ts"
     },
     "./cli": {
       "types": "./dist/cli/index.d.ts",
