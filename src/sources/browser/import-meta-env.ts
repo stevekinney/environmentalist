@@ -1,4 +1,4 @@
-import { canonicalizeKey, normalizeKeys } from '../../keys.js';
+import { normalizeKeys, tryCanonicalizeKey } from '../../keys.js';
 import type { Source, SourceResult } from '../../types.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -27,11 +27,10 @@ function loadImportMetaEnv(env: Record<string, unknown> | undefined): SourceResu
   if (env === undefined || Object.keys(env).length === 0) return undefined;
   const entries: Array<readonly [string, unknown]> = [];
   for (const [key, value] of Object.entries(env)) {
-    try {
-      entries.push([canonicalizeKey(key.replaceAll('__', '.')), value]);
-    } catch {
-      continue;
-    }
+    const canonical = tryCanonicalizeKey(key.replaceAll('__', '.'));
+    if (canonical === undefined) continue;
+
+    entries.push([canonical, value]);
   }
   if (entries.length === 0) return undefined;
   return { values: nestEntries(entries), location: 'import.meta.env' };

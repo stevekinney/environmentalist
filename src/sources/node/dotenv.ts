@@ -36,7 +36,13 @@ function expandFiles(
     }
   }
 
-  return values.length === 0 ? undefined : normalizeFlatEntries(values);
+  if (values.length === 0) {
+    return undefined;
+  }
+
+  const normalized = normalizeFlatEntries(values);
+
+  return Object.keys(normalized).length === 0 ? undefined : normalized;
 }
 
 async function loadDotenv(context: SourceContext): Promise<SourceResult | undefined> {

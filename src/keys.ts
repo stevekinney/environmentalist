@@ -15,19 +15,19 @@ function hasInvalidBoundary(segment: string): boolean {
   );
 }
 
-function assertKey(key: string): void {
+function isRepresentableKey(key: string): boolean {
   if (key.length === 0 || key.startsWith('.') || key.endsWith('.') || key.includes('..')) {
+    return false;
+  }
+
+  return !key.split('.').some((segment) => hasInvalidBoundary(segment));
+}
+
+function assertKey(key: string): void {
+  if (!isRepresentableKey(key)) {
     throw new EnvironmentalistError(
       `Invalid key "${key}": the key cannot round-trip between runtime and type-level transforms.`,
     );
-  }
-
-  for (const segment of key.split('.')) {
-    if (hasInvalidBoundary(segment)) {
-      throw new EnvironmentalistError(
-        `Invalid key "${key}": the key cannot round-trip between runtime and type-level transforms.`,
-      );
-    }
   }
 }
 
@@ -126,6 +126,22 @@ export function canonicalizeKey(key: string): string {
   return mapSegments(key, (segment) => {
     return camelCase(segment);
   });
+}
+
+/**
+ * Canonicalize a key discovered by scanning an ambient namespace.
+ *
+ * Sources that enumerate a namespace nobody curated for this library —
+ * `process.env`, `.env` files, `import.meta.env`, URL search parameters —
+ * routinely see keys that cannot round-trip, such as the `__CF_USER_TEXT_ENCODING`
+ * macOS exports into every shell. Those keys belong to somebody else, so they
+ * are skipped rather than treated as configuration errors.
+ *
+ * @param key - A key in any supported casing, from an untrusted namespace.
+ * @returns The canonical camelCase key, or `undefined` when it cannot round-trip.
+ */
+export function tryCanonicalizeKey(key: string): string | undefined {
+  return isRepresentableKey(key) ? canonicalizeKey(key) : undefined;
 }
 
 /**

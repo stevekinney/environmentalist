@@ -68,6 +68,32 @@ describe('environment source', () => {
     const result = source.loadSync?.(context('/', { env: { PORT: '3000', EMPTY: undefined } }));
     expect(result?.values).toEqual({ port: '3000' });
   });
+
+  it('skips ambient variables whose names cannot round-trip', () => {
+    const source = createEnvSource();
+    const result = source.loadSync?.(
+      context('/', {
+        env: {
+          // macOS exports these into every shell; `__` becomes a nesting dot,
+          // which used to produce an unrepresentable leading-dot key and throw.
+          __CF_USER_TEXT_ENCODING: '0x0:0:0',
+          __CFBundleIdentifier: 'com.apple.Terminal',
+          _: '/usr/bin/printenv',
+          'BASH_FUNC_x%%': '() { echo; }',
+          PORT: '3000',
+        },
+      }),
+    );
+
+    expect(result?.values).toEqual({ port: '3000' });
+  });
+
+  it('reports no result when every ambient variable is skipped', () => {
+    const source = createEnvSource();
+    const result = source.loadSync?.(context('/', { env: { __CF_USER_TEXT_ENCODING: '0x0:0:0' } }));
+
+    expect(result).toBeUndefined();
+  });
 });
 
 describe('dotenv source', () => {
@@ -102,6 +128,13 @@ describe('dotenv source', () => {
     await writeFile(join(cwd, '.env.production'), 'MODE=wrong\n');
     const result = await createDotenvSource().load(context(cwd));
     expect(result?.values).toEqual({ local: 'local' });
+  });
+
+  it('reports no result when every declared name is skipped', async () => {
+    const cwd = await temporaryDirectory();
+    await writeFile(join(cwd, '.env'), '__LEADING=value\n');
+    const result = await createDotenvSource().load(context(cwd));
+    expect(result).toBeUndefined();
   });
 });
 

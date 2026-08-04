@@ -37,6 +37,12 @@ describe('createSearchParamsSource', () => {
     ).toEqual({ tag: ['a', 'b'], server: { port: '3000' } });
   });
 
+  it('skips query parameters whose names cannot round-trip', () => {
+    expect(
+      createSearchParamsSource({ search: '?.leading=x&mode=dev' }).loadSync?.(context)?.values,
+    ).toEqual({ mode: 'dev' });
+  });
+
   it('omits secret keys', () => {
     expect(
       createSearchParamsSource({ search: '?token=hidden&mode=dev' }).loadSync?.({

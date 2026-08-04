@@ -1,4 +1,4 @@
-import { canonicalizeKey } from './keys.js';
+import { tryCanonicalizeKey } from './keys.js';
 import type { Source, SourceContext, SourceResult } from './types.js';
 
 /** Options for the URL search-parameters source. */
@@ -71,8 +71,9 @@ function loadSearchParams(
 
   const values: Record<string, unknown> = {};
   for (const [rawKey, value] of input.parameters) {
-    const key = canonicalizeKey(rawKey);
-    if (context.secretKeys?.has(key)) continue;
+    const key = tryCanonicalizeKey(rawKey);
+    if (key === undefined || context.secretKeys?.has(key)) continue;
+
     addValue(values, key, value);
   }
 

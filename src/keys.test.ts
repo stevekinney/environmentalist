@@ -9,6 +9,7 @@ import {
   camelCaseReference,
   canonicalizeKey,
   normalizeKeys,
+  tryCanonicalizeKey,
   toConfigName,
   toEnvName,
   toFlagName,
@@ -67,6 +68,15 @@ describe('canonical key utilities', () => {
     ]) {
       expect(() => canonicalizeKey(key)).toThrow(EnvironmentalistError);
     }
+  });
+
+  it('skips rather than throws for ambient keys that cannot round-trip', () => {
+    for (const key of ['', '.server', 'server.', 'server..port', '-server', 'server port']) {
+      expect(tryCanonicalizeKey(key)).toBeUndefined();
+    }
+
+    expect(tryCanonicalizeKey('SERVER__PORT'.replaceAll('__', '.'))).toBe('server.port');
+    expect(tryCanonicalizeKey('API_KEY')).toBe('apiKey');
   });
 
   it('rejects non-record values at the normalization boundary', () => {

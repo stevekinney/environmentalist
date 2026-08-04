@@ -38,7 +38,9 @@ function loadEnvironment(
     return undefined;
   }
 
-  return { values: normalizeFlatEntries(entries), location: 'process.env' };
+  const values = normalizeFlatEntries(entries);
+
+  return Object.keys(values).length === 0 ? undefined : { values, location: 'process.env' };
 }
 
 function claimsEnvironmentName(

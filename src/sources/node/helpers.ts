@@ -1,4 +1,4 @@
-import { canonicalizeKey, normalizeKeys } from '../../keys.js';
+import { normalizeKeys, tryCanonicalizeKey } from '../../keys.js';
 
 /** Convert a flat canonical record with dotted keys into a nested record. */
 export function nestRecord(record: Record<string, unknown>): Record<string, unknown> {
@@ -28,14 +28,23 @@ export function nestRecord(record: Record<string, unknown>): Record<string, unkn
   return nested;
 }
 
-/** Normalize flat source entries and apply the shared dotted-key nesting rule. */
+/**
+ * Normalize flat source entries and apply the shared dotted-key nesting rule.
+ *
+ * Keys that cannot round-trip are skipped: these entries come from ambient
+ * namespaces this library does not own, so a foreign key is not an error.
+ */
 export function normalizeFlatEntries(
   entries: Iterable<readonly [string, unknown]>,
 ): Record<string, unknown> {
   const flat: Record<string, unknown> = {};
   for (const [key, value] of entries) {
-    flat[canonicalizeKey(key)] = value;
+    const canonical = tryCanonicalizeKey(key);
+    if (canonical === undefined) continue;
+
+    flat[canonical] = value;
   }
+
   return nestRecord(normalizeKeys(flat));
 }
 
