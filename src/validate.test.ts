@@ -56,6 +56,8 @@ describe('validateResolved', () => {
     expect((environment as Record<string, unknown>)['ANTHROPIC_API_KEY']).toBeUndefined();
     expect(Object.isFrozen(environment)).toBe(true);
     expect(Object.isFrozen(environment.nested)).toBe(true);
+    expect(Object.isFrozen(environment[SOURCES])).toBe(true);
+    expect(Object.isFrozen(environment[SOURCES].port)).toBe(true);
     expect(environment[SOURCES].port).toEqual({ source: 'env', location: 'PORT' });
     expect(environment[SCHEMA]).toBe(schema);
 
@@ -73,6 +75,27 @@ describe('validateResolved', () => {
     });
     expect(inspect(environment)).toContain(MASKED);
     expect(inspect(environment)).not.toContain('real-secret');
+  });
+
+  it('leaves the caller-owned schema unfrozen and its lazy methods callable', () => {
+    const schema = z.object({
+      configuration: z.string().meta({ description: 'y' }),
+      nested: z.object({ value: z.string() }),
+    });
+    const environment = validateResolved({
+      name: 'app',
+      schema,
+      resolved: resolved({ configuration: 'x', nested: { value: 'ok' } }),
+    });
+
+    expect(Object.isFrozen(environment)).toBe(true);
+    expect(Object.isFrozen(schema)).toBe(false);
+    expect(Object.isFrozen(schema.shape.configuration)).toBe(false);
+    expect(Object.isFrozen(schema.shape.nested.shape.value)).toBe(false);
+    // Zod materializes instance methods through lazy getters that define
+    // properties on first access, so a frozen schema breaks them afterwards.
+    expect(schema.shape.configuration.meta()).toMatchObject({ description: 'y' });
+    expect(schema.shape.configuration.optional().safeParse(undefined).success).toBe(true);
   });
 
   it('aggregates invalid fields into one actionable error and masks secret values', () => {
