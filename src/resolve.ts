@@ -89,6 +89,7 @@ function contextFor<S extends z.ZodObject>(
     argv: options.argv ?? process.argv.slice(2),
     envPrefix: options.envPrefix,
     ...(extras.secretKeys === undefined ? {} : { secretKeys: extras.secretKeys }),
+    ...(extras.envOverrides === undefined ? {} : { envOverrides: extras.envOverrides }),
   };
 }
 

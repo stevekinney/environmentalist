@@ -430,6 +430,30 @@ describe('environmentalist public resolver', () => {
     expect(forcedNested.nested.value).toBe('forced');
   });
 
+  it('scopes an exact env override to the dotenv cascade too', async () => {
+    const cwd = await temporaryDirectory();
+    await writeFile(join(cwd, '.env'), 'FILE=derived\nUNRELATED=kept\n__CF_BOGUS=foreign\n');
+    const schema = z.object({
+      file: z.string().default('D').meta({ env: 'BATTLESTATION_CONFIGURATION' }),
+      unrelated: z.string(),
+    });
+    const dotenvOnly = {
+      exclude: ['project-config', 'package-json', 'user-dotfile', 'xdg-config', 'home-config'],
+    };
+
+    const derived = await environmentalist(options(cwd, schema, dotenvOnly));
+    expect(derived.file).toBe('D');
+    expect(derived.unrelated).toBe('kept');
+
+    await writeFile(
+      join(cwd, '.env'),
+      'FILE=derived\nUNRELATED=kept\nBATTLESTATION_CONFIGURATION=forced\n',
+    );
+    const forced = await environmentalist(options(cwd, schema, dotenvOnly));
+    expect(forced.file).toBe('forced');
+    expect(forced[SOURCES].file?.source).toBe('dotenv');
+  });
+
   it('normalizes thrown errors across async, sync, and safe APIs', async () => {
     const cwd = await temporaryDirectory();
     const schema = z.object({ VALUE: z.string() });
