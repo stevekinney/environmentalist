@@ -153,6 +153,32 @@ export function setValueAtPath(
   if (leaf !== undefined) current[leaf] = value;
 }
 
+/**
+ * Remove one canonical dotted path, pruning containers left empty behind it.
+ *
+ * An empty object is itself a merge candidate, so a nested delete that left
+ * `{ database: {} }` behind would still claim `database` and block every
+ * lower-precedence source.
+ *
+ * @param target - The record to modify in place.
+ * @param path - The canonical dotted path to remove.
+ */
+export function deleteValueAtPath(target: Record<string, unknown>, path: string): void {
+  const [head, ...rest] = path.split('.');
+  if (head === undefined) return;
+
+  if (rest.length === 0) {
+    delete target[head];
+    return;
+  }
+
+  const child = target[head];
+  if (!isRecord(child) || Array.isArray(child)) return;
+
+  deleteValueAtPath(child, rest.join('.'));
+  if (Object.keys(child).length === 0) delete target[head];
+}
+
 /** Read one canonical dotted path from a nested record. */
 export function valueAtPath(value: unknown, path: string): unknown {
   let current = value;
@@ -261,8 +287,12 @@ export function applyEnvironmentOverrides(
       if (entry.source.id !== 'env') return entry;
       const values = { ...entry.values };
       for (const [key, environmentName] of Object.entries(overrides)) {
+        const path = canonicalizeKey(key);
+        // A forced name replaces the derived one: drop whatever the derived
+        // spelling claimed before consulting the variable the field named.
+        deleteValueAtPath(values, path);
         const value = context.env[environmentName];
-        if (value !== undefined) setValueAtPath(values, canonicalizeKey(key), value);
+        if (value !== undefined) setValueAtPath(values, path, value);
       }
       return prepareSource(entry.source, { values, location: entry.result.location });
     });

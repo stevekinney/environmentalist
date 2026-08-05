@@ -406,6 +406,30 @@ describe('environmentalist public resolver', () => {
     expect(traces).toHaveLength(3);
   });
 
+  it('lets an exact env override replace the derived name rather than add to it', async () => {
+    const cwd = await temporaryDirectory();
+    const schema = z.object({
+      file: z.string().default('D').meta({ env: 'BATTLESTATION_CONFIGURATION' }),
+      nested: z.object({ value: z.string().meta({ env: 'EXACT_NESTED' }) }).default({ value: 'N' }),
+    });
+    const resolve = (env: Record<string, string>) =>
+      environmentalist(options(cwd, schema, { env }));
+
+    const derived = await resolve({ FILE: 'derived' });
+    const forced = await resolve({ BATTLESTATION_CONFIGURATION: 'forced' });
+    const both = await resolve({ FILE: 'derived', BATTLESTATION_CONFIGURATION: 'forced' });
+
+    expect(derived.file).toBe('D');
+    expect(forced.file).toBe('forced');
+    expect(both.file).toBe('forced');
+
+    const derivedNested = await resolve({ NESTED__VALUE: 'derived' });
+    const forcedNested = await resolve({ EXACT_NESTED: 'forced' });
+
+    expect(derivedNested.nested.value).toBe('N');
+    expect(forcedNested.nested.value).toBe('forced');
+  });
+
   it('normalizes thrown errors across async, sync, and safe APIs', async () => {
     const cwd = await temporaryDirectory();
     const schema = z.object({ VALUE: z.string() });
