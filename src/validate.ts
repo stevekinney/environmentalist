@@ -247,13 +247,21 @@ function errorFor<S extends z.ZodObject>(
   return new EnvironmentalistError(lines.join('\n'), structured);
 }
 
+/**
+ * Deep-freeze a value, descending only through its own enumerable string keys.
+ *
+ * The environment carries the caller's schema on a non-enumerable symbol, and
+ * the caller owns that object. Zod v4 materializes instance methods through
+ * lazy getters that `defineProperty` on first access, so freezing the schema
+ * breaks every method nobody happened to touch before resolution.
+ */
 function freezeDeep<T>(value: T): T {
   if (Array.isArray(value)) {
     for (const child of value) freezeDeep(child);
     return Object.freeze(value);
   }
   if (isRecord(value)) {
-    for (const child of Reflect.ownKeys(value)) freezeDeep(value[child as string]);
+    for (const child of Object.keys(value)) freezeDeep(value[child]);
     return Object.freeze(value);
   }
   return value;
@@ -266,7 +274,10 @@ function buildEnvironment<S extends z.ZodObject>(
 ): Environment<S> {
   const secretKeys = secretKeysOf(schema);
   const environment = mapOutput(parsed, schema) as Environment<S> & Record<PropertyKey, unknown>;
-  Object.defineProperty(environment, SOURCES, { value: resolved.provenance, enumerable: false });
+  Object.defineProperty(environment, SOURCES, {
+    value: freezeDeep(resolved.provenance),
+    enumerable: false,
+  });
   Object.defineProperty(environment, SCHEMA, { value: schema, enumerable: false });
   Object.defineProperty(environment, 'toJSON', {
     value: () => redactDeep(environment, secretKeys),
