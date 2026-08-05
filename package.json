@@ -1,6 +1,6 @@
 {
   "name": "@lostgradient/environmentalist",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Type-safe environment variable loading, validation, and configuration resolution for Node, Bun, and the browser.",
   "keywords": [
     "browser",
