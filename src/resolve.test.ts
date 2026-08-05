@@ -110,6 +110,23 @@ describe('resolveRaw', () => {
     expect(withoutDefaults.defaultsExcluded).toBe(true);
   });
 
+  it('rejects a missing name or schema before any source touches the filesystem', async () => {
+    const cwd = await temporaryDirectory();
+    const schema = z.object({ value: z.string().default('ok') });
+    const withoutName = { ...options(cwd, schema), name: undefined } as never;
+    const withoutSchema = { ...options(cwd, schema), schema: undefined } as never;
+    const blankName = { ...options(cwd, schema), name: '   ' } as never;
+
+    expect(() => resolveRawSync(withoutName)).toThrow(/options\.name is required/u);
+    expect(() => resolveRawSync(blankName)).toThrow(/options\.name is required/u);
+    expect(() => resolveRawSync(withoutSchema)).toThrow(/options\.schema is required/u);
+    const nameFailure = await resolveRaw(withoutName).catch((error: unknown) => error);
+    const schemaFailure = await resolveRaw(withoutSchema).catch((error: unknown) => error);
+
+    expect(nameFailure).toBeInstanceOf(EnvironmentalistError);
+    expect(schemaFailure).toBeInstanceOf(EnvironmentalistError);
+  });
+
   it('supports coercion controls and typed-source bypass', async () => {
     const cwd = await temporaryDirectory();
     const schema = z.object({ count: z.number(), enabled: z.boolean() });

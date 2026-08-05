@@ -174,6 +174,17 @@ export function schemaAtPath(schema: z.ZodObject, path: string): unknown {
   return current;
 }
 
+/**
+ * Report whether the field at a canonical path declares a Zod default.
+ *
+ * @param schema - The caller's schema.
+ * @param path - A canonical dotted path.
+ * @returns True when the field would have had a default to fall back on.
+ */
+export function hasSchemaDefault(schema: z.ZodObject, path: string): boolean {
+  return defaultForSchema(schemaAtPath(schema, path)).found;
+}
+
 function nestedSchemaPaths(schema: unknown, prefix = ''): string[] {
   const shape = schemaShape(schema);
   if (shape === undefined) return prefix.length === 0 ? [] : [prefix];
@@ -269,6 +280,29 @@ function guardSchemaNode(schema: unknown, path: string, visited: Set<unknown>): 
   for (const child of schemaChildren(schema)) guardSchemaNode(child, path, visited);
 }
 
+/**
+ * Reject the required options before any source consults the filesystem.
+ *
+ * `name` seeds config-file, dotfile, and home-directory path joins, so a
+ * missing one used to surface as a `paths[1]` `TypeError` from deep inside
+ * `node:path` rather than as a statement about the contract.
+ *
+ * @param options - The name and schema a caller supplied, unvalidated.
+ * @throws {@link EnvironmentalistError} when either is missing or the wrong shape.
+ */
+export function guardRequiredOptions(options: { name?: unknown; schema?: unknown }): void {
+  if (typeof options.name !== 'string' || options.name.trim().length === 0) {
+    throw new EnvironmentalistError(
+      'options.name is required: it names the config files, dotfiles, and environment variables Environmentalist looks for.',
+    );
+  }
+  if (schemaShape(options.schema) === undefined) {
+    throw new EnvironmentalistError(
+      `options.schema is required for "${options.name}" and must be a Zod object schema.`,
+    );
+  }
+}
+
 /** Run construction-time collision and unsupported-object guards on a schema. */
 export function guardSchema(schema: z.ZodObject, name: string): void {
   try {
@@ -354,6 +388,7 @@ export async function resolveCore(
   context: SourceContext,
   extras: ResolveExtras = {},
 ): Promise<ResolvedRaw> {
+  guardRequiredOptions({ name: options.name, schema });
   guardSchema(schema, options.name);
   const loaded = applyEnvironmentOverrides(
     await loadSources(sources, context),
@@ -372,6 +407,7 @@ export function resolveCoreSync(
   context: SourceContext,
   extras: ResolveExtras = {},
 ): ResolvedRaw {
+  guardRequiredOptions({ name: options.name, schema });
   guardSchema(schema, options.name);
   const loaded = applyEnvironmentOverrides(
     loadSourcesSync(sources, context),
