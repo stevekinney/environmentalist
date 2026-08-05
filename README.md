@@ -169,7 +169,7 @@ const schema = z.object({
 });
 ```
 
-Recognized keys: `description`, `example`, `docs`, `secret`, plus two per-field source overrides. (`deprecated` is accepted by the registry's type but nothing reads it yet.) `env` forces a specific environment-variable name—_replacing_ the derived casing and any `envPrefix`, so the derived spelling is no longer consulted for that field. That's what lets you bind to a variable you don't control without a generic name like `FILE` hijacking it, and it applies everywhere environment variables come from: both the real environment and the `.env` cascade. `flag` does the same for a flag name.
+Recognized keys: `description`, `example`, `docs`, `secret`, plus two per-field source overrides. (`deprecated` is accepted by the registry's type but nothing reads it yet.) `env` forces a specific environment-variable name—_replacing_ the derived casing and any `envPrefix`, so the derived spelling is no longer consulted for that field. That's what lets you bind to a variable you don't control without a generic name like `FILE` hijacking it, and it applies to every source that reads variables by name: the real environment, the `.env` cascade, and `import.meta.env`. `flag` does the same for a flag name.
 
 That one metadata source powers everything downstream: the actionable errors above, JSON Schema export, `.env.example` scaffolding, and the `print` command's annotated table. Write the docs once, on the schema.
 

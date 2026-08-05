@@ -1,4 +1,4 @@
-import { canonicalizeKey, normalizeKeys } from './keys.js';
+import { canonicalizeKey, normalizeKeys, tryCanonicalizeKey } from './keys.js';
 import type { Provenance, Source, SourceContext, SourceResult } from './types.js';
 
 type SchemaRecord = Record<string, unknown>;
@@ -266,6 +266,44 @@ export function loadSourcesSync(
     if (result !== undefined) loaded.push(prepareSource(source, result));
   }
   return loaded;
+}
+
+/**
+ * Replace derived variable names with the exact names forced by `meta({ env })`.
+ *
+ * Shared by every source that reads an environment-variable namespace by name
+ * — the `.env` cascade and `import.meta.env`. A forced name has to *replace*
+ * the derived spelling, not sit above it: a key named `file` derives `FILE`,
+ * and a stray `FILE=` would otherwise still claim it. The real environment is
+ * handled by {@link applyEnvironmentOverrides} instead, because it can consult
+ * `context.env` directly after the merge.
+ *
+ * Names that cannot round-trip belong to somebody else and are passed through.
+ *
+ * @param entries - Flat `[variableName, value]` pairs, dot-nested.
+ * @param overrides - Canonical keys mapped to their forced variable names.
+ * @returns The entries with overridden keys sourced only from their forced names.
+ */
+export function applyForcedEnvNames<T>(
+  entries: ReadonlyArray<readonly [string, T]>,
+  overrides: Readonly<Record<string, string>> | undefined,
+): Array<readonly [string, T]> {
+  const forced = Object.entries(overrides ?? {});
+  if (forced.length === 0) return [...entries];
+
+  const overridden = new Set(forced.map(([key]) => canonicalizeKey(key)));
+  const byName = new Map(entries.map(([name, value]) => [name, value] as const));
+  const result = entries.filter(([name]) => {
+    const canonical = tryCanonicalizeKey(name);
+    return canonical === undefined || !overridden.has(canonical);
+  });
+
+  for (const [key, forcedName] of forced) {
+    const value = byName.get(forcedName) ?? byName.get(forcedName.replaceAll('__', '.'));
+    if (value !== undefined) result.push([canonicalizeKey(key), value]);
+  }
+
+  return result;
 }
 
 /** Apply exact environment names while preserving the environment source's precedence. */

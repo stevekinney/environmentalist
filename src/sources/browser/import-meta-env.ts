@@ -1,5 +1,6 @@
+import { applyForcedEnvNames } from '../../coerce.js';
 import { normalizeKeys, tryCanonicalizeKey } from '../../keys.js';
-import type { Source, SourceResult } from '../../types.js';
+import type { Source, SourceContext, SourceResult } from '../../types.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -23,11 +24,17 @@ function nestEntries(entries: Iterable<readonly [string, unknown]>): Record<stri
   return normalizeKeys(nested);
 }
 
-function loadImportMetaEnv(env: Record<string, unknown> | undefined): SourceResult | undefined {
+function loadImportMetaEnv(
+  env: Record<string, unknown> | undefined,
+  overrides: Readonly<Record<string, string>> | undefined,
+): SourceResult | undefined {
   if (env === undefined || Object.keys(env).length === 0) return undefined;
+  const named = Object.entries(env).map(
+    ([key, value]) => [key.replaceAll('__', '.'), value] as const,
+  );
   const entries: Array<readonly [string, unknown]> = [];
-  for (const [key, value] of Object.entries(env)) {
-    const canonical = tryCanonicalizeKey(key.replaceAll('__', '.'));
+  for (const [key, value] of applyForcedEnvNames(named, overrides)) {
+    const canonical = tryCanonicalizeKey(key);
     if (canonical === undefined) continue;
 
     entries.push([canonical, value]);
@@ -45,7 +52,7 @@ export function createImportMetaEnvSource(
   return {
     id: 'import-meta-env',
     kind: 'string',
-    load: () => loadImportMetaEnv(options.env),
-    loadSync: () => loadImportMetaEnv(options.env),
+    load: (context: SourceContext) => loadImportMetaEnv(options.env, context.envOverrides),
+    loadSync: (context: SourceContext) => loadImportMetaEnv(options.env, context.envOverrides),
   };
 }
