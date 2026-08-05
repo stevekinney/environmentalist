@@ -108,4 +108,27 @@ describe('browser sources', () => {
       location: 'import.meta.env',
     });
   });
+
+  it('lets an exact env override replace the derived import.meta.env name', () => {
+    const overridden: SourceContext = {
+      ...context,
+      envOverrides: { file: 'BATTLESTATION_CONFIGURATION' },
+    };
+
+    const derived = createImportMetaEnvSource({ env: { FILE: 'derived', OTHER: 'kept' } });
+    expect(derived.loadSync?.(overridden)).toEqual({
+      values: { other: 'kept' },
+      location: 'import.meta.env',
+    });
+
+    const forced = createImportMetaEnvSource({
+      env: { FILE: 'derived', BATTLESTATION_CONFIGURATION: 'forced' },
+    });
+    // The forced variable also lands under its own canonical key, as every
+    // source supplies keys the schema is free to ignore.
+    expect(forced.loadSync?.(overridden)?.values).toMatchObject({ file: 'forced' });
+
+    // Without the metadata the derived name still resolves as before.
+    expect(derived.loadSync?.(context)?.values).toEqual({ file: 'derived', other: 'kept' });
+  });
 });

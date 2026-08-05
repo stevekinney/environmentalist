@@ -100,6 +100,7 @@ function browserContext<S extends z.ZodObject>(options: EnvironmentalistOptions<
     argv: [],
     envPrefix: options.envPrefix,
     secretKeys: secretKeysOf(schema),
+    envOverrides: envOverridesOf(schema),
   } as const;
 }
 
