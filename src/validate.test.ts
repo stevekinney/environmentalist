@@ -1,4 +1,4 @@
-/* eslint-disable typescript/no-unsafe-type-assertion */
+/* eslint-disable max-lines, typescript/no-unsafe-type-assertion */
 
 import { inspect } from 'node:util';
 
@@ -147,6 +147,44 @@ describe('validateResolved', () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) expect(result.error.message).toContain('value — required, but not found');
+  });
+
+  it('explains an absent enum as missing and names the excluded defaults source', () => {
+    const schema = z.object({
+      NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+      OTHER: z.string(),
+    });
+    const result = safeValidateResolved({
+      name: 'skillset',
+      schema,
+      resolved: resolved(
+        {},
+        { defaultsExcluded: true, checked: { nodeEnv: ['env NODE_ENV'], other: ['env OTHER'] } },
+      ),
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.message).toContain('nodeEnv — required, but not found');
+    expect(result.error.message).not.toContain('unknown source');
+    expect(result.error.message).not.toContain('(= undefined)');
+    expect(result.error.message).toContain('the "defaults" source is not in the active chain');
+    // The note is specific to fields that actually had a default to lose.
+    expect(result.error.message.split('other —')[1]).not.toContain('defaults" source');
+  });
+
+  it('omits the defaults note when the defaults source is active', () => {
+    const schema = z.object({ VALUE: z.string().default('fallback') });
+    const result = safeValidateResolved({
+      name: 'app',
+      schema,
+      resolved: resolved({ value: 3 }, { checked: { value: ['env VALUE'] } }),
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.message).toContain('expected string, received 3');
+    expect(result.error.message).not.toContain('defaults" source');
   });
 
   it('returns a frozen public object without secrets or symbols', () => {

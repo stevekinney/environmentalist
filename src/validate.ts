@@ -6,6 +6,7 @@ import { EnvironmentalistError } from './errors.js';
 import { canonicalizeKey } from './keys.js';
 import { metadataFor, secretKeysOf } from './metadata.js';
 import { MASKED, redactDeep } from './redact.js';
+import { hasSchemaDefault } from './resolve-core.js';
 import type { ResolvedRaw } from './resolve-core.js';
 import { SCHEMA, SOURCES } from './types.js';
 import type {
@@ -176,7 +177,9 @@ function issueSummary(
   missing: boolean,
 ): string {
   const record = issue as z.core.$ZodIssue & { expected?: string; input?: unknown };
-  if (record.code === 'invalid_type' && missing) return 'required, but not found';
+  // An absent value fails differently per field type — an enum reports
+  // invalid_value, not invalid_type — but it is the same problem either way.
+  if (missing) return 'required, but not found';
   if (record.code === 'invalid_type' && record.expected !== undefined) {
     return `expected ${record.expected}, received ${formatValue(value, secret)}`;
   }
@@ -232,8 +235,13 @@ function errorFor<S extends z.ZodObject>(
     if (entry.metadata.description !== undefined) lines.push(`    ${entry.metadata.description}`);
     if (entry.metadata.example !== undefined)
       lines.push(`    Example: ${formatValue(entry.metadata.example, secret)}`);
-    if (entry.issue.code === 'invalid_type' && missing) {
+    if (missing) {
       lines.push(`    Checked:  ${(resolved.checked[entry.key] ?? []).join(' · ')}`);
+      if (resolved.defaultsExcluded === true && hasSchemaDefault(schema, entry.key)) {
+        lines.push(
+          `    Note:     this field declares a schema default, but the "defaults" source is not in the active chain — add "defaults" to sources, or drop it from exclude.`,
+        );
+      }
     } else {
       const source = resolved.provenance[entry.key];
       const sourceText =
