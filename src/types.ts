@@ -151,6 +151,8 @@ export type SourceContext = {
   readonly envPrefix: string | undefined;
   /** Canonical keys marked `secret` in the schema; sources like search-params omit them. */
   readonly secretKeys?: ReadonlySet<string>;
+  /** Canonical keys to forced variable names, from `meta({ env })`. */
+  readonly envOverrides?: Readonly<Record<string, string>>;
 };
 
 /** A canonical-keyed partial result from a source. */
