@@ -3,11 +3,11 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { parse } from 'dotenv';
-import { expand } from 'dotenv-expand';
 
 import { applyForcedEnvNames } from '../../coerce.js';
 import type { Source, SourceContext, SourceResult } from '../../types.js';
 
+import { expandEnv } from './expand-env.js';
 import { normalizeFlatEntries } from './helpers.js';
 
 function cascadeFiles(context: SourceContext): string[] {
@@ -29,7 +29,7 @@ function expandFiles(
 
   for (let index = 0; index < files.length; index += 1) {
     const parsed = parse(contents[index] ?? '');
-    expand({ parsed, processEnv: isolated });
+    expandEnv({ parsed, processEnv: isolated });
     for (const [key, value] of Object.entries(parsed)) {
       if (!claimed.has(key)) {
         parsedValues.push([key.replaceAll('__', '.'), value]);

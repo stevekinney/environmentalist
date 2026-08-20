@@ -100,7 +100,7 @@ By default the lookup is bare—`mode` reads `MODE`. Because bare names like `MO
 
 ### `.env` files
 
-Loaded with `dotenv` semantics plus `dotenv-expand` for `${VAR}` interpolation, so one entry can reference another. The cascade order is listed above. `.env` files never override real environment variables. The set of files is derived from `$name` only in that they live at the project root/cwd—they are not named after `$name` (they're just `.env*`), which is the convention everyone already has.
+Loaded with `dotenv` semantics plus an in-repo port of `dotenv-expand`'s `${VAR}` interpolation, so one entry can reference another. The cascade order is listed above. `.env` files never override real environment variables. The set of files is derived from `$name` only in that they live at the project root/cwd—they are not named after `$name` (they're just `.env*`), which is the convention everyone already has.
 
 ### Config files
 
@@ -451,7 +451,7 @@ ESM-only. `zod` is a `peerDependency` (`^4`) so there's exactly one copy of Zod 
 - **Types:** `tsc --noEmit`.
 - **Package correctness:** `publint` and `@arethetypeswrong/cli`.
 
-Runtime dependencies (core): `change-case` (ESM v5, isomorphic), plus the Node-only source deps `dotenv`, `dotenv-expand`, `jiti`, `toml`, `yaml`—all confined to the Node adapter so the `browser` condition tree-shakes them out. Peer: `zod@^4` (isomorphic). Optional peers: `react` and `svelte`, used only by their respective subpaths. The CLI adds `ts-morph` (which carries the TypeScript compiler); keep it out of the core runtime by scoping it to the `environmentalist/cli` bin so importing the library never pulls in the compiler. Export subpaths and conditions: `.` (runtime, with a `browser` condition selecting the browser adapter build), `./types` (types-only), `./cli`, `./react`, `./svelte`.
+Runtime dependencies (core): `change-case` (ESM v5, isomorphic), plus the Node-only source deps `dotenv`, `jiti`, `toml`, `yaml`—all confined to the Node adapter so the `browser` condition tree-shakes them out (`${VAR}` interpolation is a small in-repo port of `dotenv-expand` rather than the package itself). Peer: `zod@^4` (isomorphic). Optional peers: `react` and `svelte`, used only by their respective subpaths. The CLI adds `ts-morph` (which carries the TypeScript compiler); keep it out of the core runtime by scoping it to the `environmentalist/cli` bin so importing the library never pulls in the compiler. Export subpaths and conditions: `.` (runtime, with a `browser` condition selecting the browser adapter build), `./types` (types-only), `./cli`, `./react`, `./svelte`.
 
 ### One build, multiple entries
 
