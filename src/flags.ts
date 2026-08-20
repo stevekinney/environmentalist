@@ -1,3 +1,4 @@
+import { EnvironmentalistError } from './errors.js';
 import { canonicalizeKey } from './keys.js';
 import type { Source } from './types.js';
 
@@ -102,22 +103,123 @@ function parseArgument(
   return valueForFlag(key, body, equalsIndex, next);
 }
 
-/** Parse argv into canonical, nested configuration values. */
-export function parseFlags(
-  argv: readonly string[],
-  options: FlagOptions = {},
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
+type ParsedArgv = {
+  readonly values: Record<string, unknown>;
+  readonly positionals: readonly string[];
+};
+
+function parseArgv(argv: readonly string[], options: FlagOptions): ParsedArgv {
+  const values: Record<string, unknown> = {};
+  const positionals: string[] = [];
   const aliases = canonicalFlagNames(options);
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === undefined) continue;
-    if (argument === '--') break;
+    if (argument === '--') {
+      positionals.push(...argv.slice(index + 1));
+      break;
+    }
     const parsed = parseArgument(argument, argv[index + 1], aliases);
-    if (parsed === undefined) continue;
-    addValue(result, parsed.key, parsed.value);
+    if (parsed === undefined) {
+      positionals.push(argument);
+      continue;
+    }
+    addValue(values, parsed.key, parsed.value);
     if (parsed.consumesNext) index += 1;
+  }
+
+  return { values, positionals };
+}
+
+/** Parse argv into canonical, nested configuration values. */
+export function parseFlags(
+  argv: readonly string[],
+  options: FlagOptions = {},
+): Record<string, unknown> {
+  return parseArgv(argv, options).values;
+}
+
+/**
+ * Collect the non-flag arguments from argv—everything that isn't consumed as
+ * a flag name or a flag's value, plus everything after a bare `--` terminator.
+ */
+export function parsePositionals(
+  argv: readonly string[],
+  options: FlagOptions = {},
+): readonly string[] {
+  return parseArgv(argv, options).positionals;
+}
+
+/** Describes one expected positional argument, in argv order. */
+export type PositionalSpec = {
+  readonly name: string;
+  readonly description?: string;
+  /** Defaults to `true`, except for a variadic entry, which defaults to `false`. */
+  readonly required?: boolean;
+  /** Consumes every remaining positional. Only the last entry in a spec may be variadic. */
+  readonly variadic?: boolean;
+};
+
+function assertValidPositionalSpec(spec: readonly PositionalSpec[]): void {
+  spec.forEach((entry, index) => {
+    if (entry.variadic && index !== spec.length - 1) {
+      throw new EnvironmentalistError(
+        `Invalid positional spec: "${entry.name}" is variadic but is not the last entry.`,
+      );
+    }
+    const previous = spec[index - 1];
+    if (previous?.required === false && (entry.required ?? !entry.variadic)) {
+      throw new EnvironmentalistError(
+        `Invalid positional spec: required "${entry.name}" follows optional "${previous.name}".`,
+      );
+    }
+  });
+}
+
+/**
+ * Match parsed positionals against a spec, by argv order.
+ *
+ * @throws {@link EnvironmentalistError} when a required positional is missing,
+ * an extra positional has no matching spec entry, or the spec itself is
+ * malformed (a non-trailing variadic entry, or a required entry after an
+ * optional one).
+ */
+export function matchPositionals(
+  positionals: readonly string[],
+  spec: readonly PositionalSpec[],
+): Record<string, string | readonly string[]> {
+  assertValidPositionalSpec(spec);
+  const result: Record<string, string | readonly string[]> = {};
+  let index = 0;
+
+  for (const entry of spec) {
+    const required = entry.required ?? !entry.variadic;
+    if (entry.variadic) {
+      const rest = positionals.slice(index);
+      if (required && rest.length === 0) {
+        throw new EnvironmentalistError(`Missing required positional argument "${entry.name}".`);
+      }
+      result[entry.name] = rest;
+      index = positionals.length;
+      continue;
+    }
+
+    const value = positionals[index];
+    if (value === undefined) {
+      if (required) {
+        throw new EnvironmentalistError(`Missing required positional argument "${entry.name}".`);
+      }
+      continue;
+    }
+    result[entry.name] = value;
+    index += 1;
+  }
+
+  if (index < positionals.length) {
+    throw new EnvironmentalistError(
+      `Unexpected positional argument "${positionals[index]}"; only ${spec.length} positional argument${spec.length === 1 ? '' : 's'} accepted.`,
+    );
   }
 
   return result;

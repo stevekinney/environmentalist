@@ -1,5 +1,12 @@
 import { EnvironmentalistError } from './errors.js';
 import { environmentalist as environmentalistResolver } from './environmentalist.js';
+import {
+  matchPositionals as matchPositionalsHelper,
+  parsePositionals as parsePositionalsHelper,
+} from './flags.js';
+import type { PositionalSpec } from './flags.js';
+import { generateHelp as generateHelpHelper } from './help.js';
+import type { HelpOptions } from './help.js';
 import { registry, secret } from './metadata.js';
 import {
   defineConfig as defineConfigHelper,
@@ -37,6 +44,9 @@ const runtimeApi = {
   defineConfig: defineConfigHelper,
   electronPaths: electronPathsHelper,
   environmentalist: environmentalistResolver,
+  generateHelp: generateHelpHelper,
+  matchPositionals: matchPositionalsHelper,
+  parsePositionals: parsePositionalsHelper,
   registry,
   secret,
   toJSONSchema: toJSONSchemaHelper,
@@ -48,6 +58,9 @@ const createWatcher = runtimeApi.createWatcher;
 const createUserDataConfigSource = runtimeApi.createUserDataConfigSource;
 const defineConfig = runtimeApi.defineConfig;
 const electronPaths = runtimeApi.electronPaths;
+const generateHelp = runtimeApi.generateHelp;
+const matchPositionals = runtimeApi.matchPositionals;
+const parsePositionals = runtimeApi.parsePositionals;
 const toJSONSchema = runtimeApi.toJSONSchema;
 const toPublic = runtimeApi.toPublic;
 
@@ -60,6 +73,9 @@ export {
   defineConfig,
   electronPaths,
   environmentalist,
+  generateHelp,
+  matchPositionals,
+  parsePositionals,
   registry,
   secret,
   toJSONSchema,
@@ -75,6 +91,8 @@ export type {
   DeepPartial,
   EnvironmentalistOptions,
   Environment,
+  HelpOptions,
+  PositionalSpec,
   SafeResult,
   SourceName,
   SourceSpec,

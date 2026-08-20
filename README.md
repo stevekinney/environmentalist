@@ -90,6 +90,44 @@ The `.env` cascade references `$mode`, but `mode` is itself a resolved key. Envi
 
 Flags parse from `process.argv` (override with `argv` for testing). As the top-priority source, it gets the richest parser: `--key value` and `--key=value` both work, booleans negate with `--no-verbose`, short aliases map through the `aliases` option, repeats build arrays (`--tag a --tag b` → `['a', 'b']`), dot paths nest (`--server.port=3000`), and a bare `--` terminates parsing.
 
+Everything after that terminator—and any bare argument that isn't consumed as a flag name or a flag's value—is a **positional**, not config. Environmentalist's own resolution ignores positionals entirely, but `parsePositionals(argv, options?)` collects them (same `aliases`/`flagOverrides` options as `parseFlags`, since those affect what counts as a flag's value), and `matchPositionals(positionals, spec)` maps that list onto named slots:
+
+```ts
+import { matchPositionals, parsePositionals } from '@lostgradient/environmentalist';
+
+const positionals = parsePositionals(process.argv.slice(2));
+// ['build', 'src/index.ts']
+
+const { command, files } = matchPositionals(positionals, [
+  { name: 'command' },
+  { name: 'files', variadic: true },
+]);
+// { command: 'build', files: ['src/index.ts'] }
+```
+
+Each `PositionalSpec` entry takes a `name`, an optional `description`, `required` (defaults to `true`, or `false` for a `variadic` entry), and `variadic` (consumes every remaining positional; only the last entry may set it). `matchPositionals` throws an `EnvironmentalistError` for a missing required entry, an extra positional with no matching spec entry, or a malformed spec (a non-trailing variadic, or a required entry after an optional one).
+
+These are standalone utilities—positionals never merge into the resolved `Environment`, since they don't correspond to schema keys. Environmentalist resolves named config; pair it with a command dispatcher (`commander`, `cac`, …) for subcommands and positional-driven CLI grammar.
+
+### Generating `--help` text
+
+`generateHelp({ name, schema, description?, usage?, positionals? })` renders usage text from a schema's top-level fields—flag name (respecting `flag` metadata overrides), inferred type, `(required)` or `(default: …)`, `(secret)`, and the field's `description` metadata—plus an optional `positionals` list (using the same `PositionalSpec` shape as `matchPositionals`):
+
+```ts
+import { generateHelp } from '@lostgradient/environmentalist';
+
+console.log(
+  generateHelp({
+    name: 'bowowwow',
+    schema,
+    description: 'Bark responsibly.',
+    positionals: [{ name: 'command', description: 'Which command to run' }],
+  }),
+);
+```
+
+Only top-level keys get their own row—nested keys still resolve via dot-path flags, they just don't get individually documented. Wire it to `--help` yourself; Environmentalist doesn't intercept flags on your behalf.
+
 ### Environment variables
 
 Each canonical key is looked up as its `constantCase` form. Nesting uses a double-underscore delimiter: `SERVER__PORT` maps to `{ server: { port } }`.
