@@ -22,22 +22,31 @@ import { afterEach, mock, setSystemTime } from 'bun:test';
 // instead of the suite. Filed upstream:
 // https://github.com/oven-sh/bun/issues/40585 — remove once fixed.
 if (typeof process !== 'undefined' && process.versions?.['bun'] !== undefined) {
-  const warmupDir = mkdtempSync(join(tmpdir(), 'environmentalist-bun-warmup-'));
+  // This entire block is a best-effort workaround, not a correctness
+  // requirement: if anything in it throws — including the first `require()`,
+  // e.g. because a future Bun release changes this behavior — the warmup
+  // must not be able to fail the suite itself.
   try {
-    const first = join(warmupDir, 'a.ts');
-    writeFileSync(first, 'export const A = 1;\n');
-    createRequire(pathToFileURL(first).href)(first);
-
-    const second = join(warmupDir, 'b.ts');
-    writeFileSync(second, 'export const B = 2;\n');
+    const warmupDir = mkdtempSync(join(tmpdir(), 'environmentalist-bun-warmup-'));
     try {
-      createRequire(pathToFileURL(second).href)(second);
-    } catch {
-      // Expected on the first occurrence per process; this call is what
-      // absorbs the bug so real tests don't hit it.
+      const first = join(warmupDir, 'a.ts');
+      writeFileSync(first, 'export const A = 1;\n');
+      createRequire(pathToFileURL(first).href)(first);
+
+      const second = join(warmupDir, 'b.ts');
+      writeFileSync(second, 'export const B = 2;\n');
+      try {
+        createRequire(pathToFileURL(second).href)(second);
+      } catch {
+        // Expected on the first occurrence per process; this call is what
+        // absorbs the bug so real tests don't hit it.
+      }
+    } finally {
+      rmSync(warmupDir, { recursive: true, force: true });
     }
-  } finally {
-    rmSync(warmupDir, { recursive: true, force: true });
+  } catch {
+    // If the warmup itself couldn't run, real tests take the risk of hitting
+    // the bug instead — better than aborting the whole run from a preload.
   }
 }
 

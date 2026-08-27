@@ -414,7 +414,7 @@ Two things to design around. **Env vars and flags are unreliable for GUI launche
 ```bash
 bun run dev           # watch mode
 bun run build         # build to dist/
-bun test              # run the test suite
+bun run test          # run the test suite (bun test --coverage) — the CI gate
 bun run test:parallel # faster local loop: bun test --parallel, no coverage
 bun run check         # fast sanity: format:check + lint + typecheck
 bun run validate      # the full gate, same as pre-push and CI
