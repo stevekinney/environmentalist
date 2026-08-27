@@ -1,12 +1,21 @@
 [loader]
 ".md" = "text"
 
+[install]
+linker = "isolated"
+
 [run]
 bun = true
 
 [test]
 preload = ["./test/setup.ts"]
-coverage = true
+# Coverage is enabled per-invocation (`bun test --coverage`, wired into the
+# `test`/`test:coverage` scripts) rather than globally here, so `test:parallel`
+# can opt out by omitting the flag — Bun 1.4.0's `--parallel` coverage merge
+# under-reports against the threshold below, even with zero test failures:
+# https://github.com/oven-sh/bun/issues/40586. The settings under this key
+# still apply whenever coverage is collected, regardless of how it was
+# turned on.
 coverageReporter = ["text", "lcov"]
 coverageThreshold = { lines = 1.0, functions = 1.0, statements = 1.0 }
 coverageSkipTestFiles = true

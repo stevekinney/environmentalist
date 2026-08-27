@@ -15,12 +15,15 @@ node ./dist/cli.js --help # Exercise the built CLI under plain Node
 ### Testing
 
 ```bash
-bun test                  # Run all tests
-bun test src/watch        # Run tests in specific directory
-bun test resolve          # Run tests matching pattern
-bun test --watch          # Watch mode
-bun test --coverage       # Generate coverage report
+bun run test          # Serial, 100% coverage enforced — this is the gate (bun test --coverage)
+bun test src/watch    # Run tests in specific directory (no coverage unless --coverage is passed)
+bun test resolve      # Run tests matching pattern
+bun test --watch      # Watch mode
+bun test --coverage   # Generate coverage report
+bun run test:parallel # Faster local loop: bun test --parallel, no coverage — not the gate
 ```
+
+Coverage is opt-in per invocation, not global: `bunfig.toml` configures the reporter and the 100% threshold, but only `--coverage` (wired into the `test`/`test:coverage` scripts) turns it on. `bun run test:parallel` is for local iteration speed only — Bun 1.4.0's `--parallel` cross-worker coverage merge is lossy against the 100% threshold, so `test:parallel` omits `--coverage` entirely and CI never runs it; `bun run test`/`test:coverage` (serial) stay the gate.
 
 ### Code Quality
 
@@ -203,7 +206,8 @@ When a Bun equivalent doesn't exist or Node's API is more appropriate, use the `
 
 ### Configuration Notes
 
-- **bunfig.toml**: Configures the `.md` text loader, forces Bun runtime for scripts, and sets up `bun test` with preload, coverage, and 100% thresholds.
+- **bunfig.toml**: Configures the `.md` text loader, forces Bun runtime for scripts, sets the isolated install linker, preloads `test/setup.ts`, and sets the coverage reporter and 100% thresholds (coverage collection itself is opt-in per invocation via `--coverage`, not global — see Testing below).
 - **TypeScript**: Uses Bun types; Node type libs are not included by default.
 - **Oxlint**: Rust-based linter with built-in TypeScript, promise, unicorn, and import plugins. Type-aware rules enabled via `--type-aware --tsconfig ./tsconfig.json`. Test files have relaxed rules.
-- **Testing**: Run tests in parallel via `bun test --parallel`.
+- **Testing**: `bun run test` (`bun test --coverage`) is the CI gate and enforces 100% coverage. `bun run test:parallel` (`bun test --parallel`, no `--coverage`) runs the same suite for a faster local loop — not gated, because Bun 1.4.0's parallel coverage merge under-reports against this repository's threshold.
+- **Install linker**: `bunfig.toml` sets `[install] linker = "isolated"` so local installs and CI use the same `node_modules` layout.
