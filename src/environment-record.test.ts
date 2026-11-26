@@ -49,6 +49,20 @@ describe('createEnvironmentRecordSource', () => {
     ).toEqual({ values: { apiKey: 'token' }, location: 'environment record' });
   });
 
+  it('skips inherited values while preserving own values', () => {
+    const environment = Object.create({ SERVICE_TOKEN: 'inherited', SERVER_PORT: 'inherited' });
+
+    expect(load(createEnvironmentRecordSource({ schema, environment }))).toBeUndefined();
+
+    environment.SERVICE_TOKEN = 'own-token';
+    environment.SERVER_PORT = '3000';
+
+    expect(load(createEnvironmentRecordSource({ schema, environment }))).toEqual({
+      values: { apiKey: 'own-token', serverPort: '3000' },
+      location: 'environment record',
+    });
+  });
+
   it('resolves a caller record through the synchronous resolver', () => {
     const source = createEnvironmentRecordSource({
       schema,

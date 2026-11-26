@@ -22,6 +22,7 @@ function fallbackEnvironment(): EnvironmentRecord {
 }
 
 function environmentValue(environment: EnvironmentRecord, name: string): string | undefined {
+  if (!Object.hasOwn(environment, name)) return undefined;
   const value = Reflect.get(environment, name);
   return typeof value === 'string' ? value : undefined;
 }
