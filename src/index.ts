@@ -1,4 +1,5 @@
 import { EnvironmentalistError } from './errors.js';
+import { createEnvironmentRecordSource as environmentRecordSource } from './environment-record.js';
 import { environmentalist as environmentalistResolver } from './environmentalist.js';
 import {
   matchPositionals as matchPositionalsHelper,
@@ -39,6 +40,7 @@ const runtimeApi = {
   EnvironmentalistError,
   SCHEMA,
   SOURCES,
+  createEnvironmentRecordSource: environmentRecordSource,
   createUserDataConfigSource: userDataSource,
   createWatcher: nodeWatcher,
   defineConfig: defineConfigHelper,
@@ -55,6 +57,7 @@ const runtimeApi = {
 
 const environmentalist = runtimeApi.environmentalist;
 const createWatcher = runtimeApi.createWatcher;
+const createEnvironmentRecordSource = runtimeApi.createEnvironmentRecordSource;
 const createUserDataConfigSource = runtimeApi.createUserDataConfigSource;
 const defineConfig = runtimeApi.defineConfig;
 const electronPaths = runtimeApi.electronPaths;
@@ -68,6 +71,7 @@ export {
   EnvironmentalistError,
   SCHEMA,
   SOURCES,
+  createEnvironmentRecordSource,
   createUserDataConfigSource,
   createWatcher,
   defineConfig,
@@ -97,3 +101,4 @@ export type {
   SourceName,
   SourceSpec,
 };
+export type { EnvironmentRecord, EnvironmentRecordSourceOptions } from './environment-record.js';

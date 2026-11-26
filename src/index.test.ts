@@ -8,6 +8,7 @@ describe('public API', () => {
       'EnvironmentalistError',
       'SCHEMA',
       'SOURCES',
+      'createEnvironmentRecordSource',
       'createUserDataConfigSource',
       'createWatcher',
       'defineConfig',

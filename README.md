@@ -335,6 +335,7 @@ registry                              // typed Zod registry for the metadata abo
 createWatcher(options)                // the watcher without going through the resolver
 electronPaths(appName)                // platform userData directories
 createUserDataConfigSource(options)   // a source reading an Electron userData config
+createEnvironmentRecordSource(options) // a filesystem-free source for a Worker binding record
 SOURCES, SCHEMA                       // provenance and back-reference symbols
 class EnvironmentalistError extends Error
 
@@ -343,6 +344,12 @@ type Environment<S> = Readonly<CamelCasedPropertiesDeep<z.output<S>>>
 ```
 
 `Environment<S>` is frozen, camelCase-keyed, and built from the schema's **output** type—`.default()` applied, `.transform()` run, coercion done—so a defaulted field is non-optional on the returned type.
+
+`createEnvironmentRecordSource({ schema, environment })` creates a custom source for runtimes
+whose environment comes from a caller-owned record, such as a Cloudflare Worker binding object. It
+reads only top-level schema fields, honoring each field's `meta({ env })` override or its derived
+`toEnvName` spelling. It reads string values and ignores other bindings, and never reads files.
+Omit `environment` to read `process.env` when present.
 
 Types-only consumers (an Electron renderer, an IPC boundary) can import from the `./types` subpath with no runtime import at all:
 
