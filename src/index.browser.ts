@@ -193,6 +193,11 @@ export function createWatcher<S extends z.ZodObject>(
 }
 
 export { EnvironmentalistError, defineConfig, registry, secret, toJSONSchema, toPublic };
+export {
+  createEnvironmentRecordSource,
+  type EnvironmentRecord,
+  type EnvironmentRecordSourceOptions,
+} from './environment-record.js';
 export { SCHEMA, SOURCES } from './types.js';
 export type {
   CamelCasedPropertiesDeep,

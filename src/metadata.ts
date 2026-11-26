@@ -78,7 +78,7 @@ function metadataAt(schema: z.ZodType): MetadataLayer {
 }
 
 /** Read merged metadata, including metadata registered on unwrapped schemas. */
-export function metadataFor(fieldSchema: z.ZodType): EnvironmentalistMetadata {
+export function metadataFor(fieldSchema: unknown): EnvironmentalistMetadata {
   const typed: EnvironmentalistMetadata = {};
   const global: EnvironmentalistMetadata = {};
   let current: unknown = fieldSchema;
